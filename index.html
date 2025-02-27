@@ -11,15 +11,12 @@
             font-family: Arial, sans-serif;
             margin: 0;
             padding: 0;
-            background: url('Background.png') no-repeat center center fixed;
-            background-size: cover;
-            background-blend-mode: overlay;
-            background-color: rgba(255, 255, 255, 0.8); /* Capa blanca semi-transparente para contraste */
+            background-color: #f5f5f5;
             text-align: center;
         }
         .nav {
             padding: 20px;
-            background-color: rgba(232, 245, 233, 0.9); /* Fondo semi-transparente para el nav */
+            background-color: #e8f5e9;
         }
         .nav button {
             margin: 0 10px;
@@ -35,25 +32,22 @@
         }
         .section {
             padding: 40px 20px;
-            background-color: rgba(255, 255, 255, 0.95); /* Fondo semi-transparente para las secciones */
-            border-radius: 10px;
-            margin: 0 auto;
             max-width: 900px;
+            margin: 0 auto;
         }
         header {
             padding: 20px 20px;
-            background-color: rgba(232, 245, 233, 0.95); /* Fondo semi-transparente para el header */
+            background-color: #e8f5e9;
             display: flex;
             align-items: center;
             justify-content: center;
             flex-wrap: wrap;
-            border-radius: 10px 10px 0 0;
         }
         .logo {
             max-width: 200px;
             height: auto;
             border-radius: 10px;
-            object-fit: contain; /* Asegura que la imagen mantenga proporciones */
+            object-fit: contain;
         }
         h2 {
             font-size: 1.8em;
@@ -88,7 +82,6 @@
             border: 1px solid #ccc;
             border-radius: 5px;
             flex: 1;
-            background-color: rgba(255, 255, 255, 0.9); /* Fondo semi-transparente para inputs */
         }
         button {
             padding: 10px 20px;
@@ -127,7 +120,7 @@
         }
         footer {
             padding: 20px;
-            background-color: rgba(241, 248, 233, 0.9); /* Fondo semi-transparente para el footer */
+            background-color: #f1f8e9;
             margin-top: 40px;
         }
         .message {
@@ -140,19 +133,25 @@
             background-color: #dff0d8;
             color: #3c763d;
         }
+        .auth-section {
+            margin: 20px 0;
+        }
     </style>
 </head>
 <body>
     <div id="app">
         <div class="nav">
-            <button @click="currentView = 'home'">Inicio</button>
-            <button @click="currentView = 'products'">Productos</button>
+            <button v-if="!user" @click="currentView = 'login'">Iniciar Sesión</button>
+            <button v-if="!user" @click="currentView = 'register'">Registrarse</button>
+            <button v-if="user" @click="currentView = 'home'">Inicio</button>
+            <button v-if="user" @click="currentView = 'products'">Productos</button>
+            <button v-if="user" @click="logout">Cerrar Sesión</button>
         </div>
 
         <!-- Homepage -->
-        <div v-if="currentView === 'home'" class="section">
+        <div v-if="currentView === 'home' && user" class="section">
             <header>
-                <img src="Logo_Naturalli.png" alt="Naturalli Logo" class="logo" />
+                <img src="logo-naturalli.png" alt="Naturalli Logo" class="logo" />
             </header>
             <section class="intro">
                 <img src="https://via.placeholder.com/500x300" alt="Cosmética Natural" class="hero-image" />
@@ -163,8 +162,35 @@
             </section>
         </div>
 
+        <!-- Registro -->
+        <div v-if="currentView === 'register' && !user" class="section auth-section">
+            <h2>Registrarse</h2>
+            <div class="input-container">
+                <input v-model="newUser.name" placeholder="Nombre" />
+            </div>
+            <div class="input-container">
+                <input v-model="newUser.email" type="email" placeholder="Email" />
+            </div>
+            <div class="input-container">
+                <input v-model="newUser.password" type="password" placeholder="Contraseña" />
+            </div>
+            <button @click="register">Registrarse</button>
+        </div>
+
+        <!-- Inicio de Sesión -->
+        <div v-if="currentView === 'login' && !user" class="section auth-section">
+            <h2>Iniciar Sesión</h2>
+            <div class="input-container">
+                <input v-model="loginEmail" type="email" placeholder="Email" />
+            </div>
+            <div class="input-container">
+                <input v-model="loginPassword" type="password" placeholder="Contraseña" />
+            </div>
+            <button @click="login">Iniciar Sesión</button>
+        </div>
+
         <!-- Productos (Calculadora) -->
-        <div v-if="currentView === 'products'" class="section">
+        <div v-if="currentView === 'products' && user" class="section">
             <h2>Gestión de Productos</h2>
             <div class="input-container">
                 <input v-model="nuevoProducto" placeholder="Nombre del producto" @keydown.enter="agregarProducto" />
@@ -222,6 +248,11 @@
                 return {
                     currentView: 'home',
                     db: null,
+                    user: null, // Usuario actual
+                    usuarios: JSON.parse(localStorage.getItem("usuarios")) || {}, // Almacenar usuarios
+                    newUser: { name: '', email: '', password: '' },
+                    loginEmail: '',
+                    loginPassword: '',
                     productos: [],
                     productoActual: '',
                     componentes: [],
@@ -238,6 +269,11 @@
             async created() {
                 await this.initDB();
                 this.loadProducts();
+                // Cargar usuario desde localStorage si existe
+                const savedUser = localStorage.getItem("currentUser");
+                if (savedUser) {
+                    this.user = JSON.parse(savedUser);
+                }
             },
             methods: {
                 async initDB() {
@@ -247,15 +283,24 @@
 
                     this.db.run(`
                         CREATE TABLE IF NOT EXISTS productos (
-                            nombre TEXT PRIMARY KEY,
-                            total REAL DEFAULT 0
+                            nombre TEXT,
+                            total REAL DEFAULT 0,
+                            usuario TEXT,
+                            PRIMARY KEY (nombre, usuario),
+                            FOREIGN KEY (usuario) REFERENCES usuarios(email)
                         );
                         CREATE TABLE IF NOT EXISTS componentes (
                             id INTEGER PRIMARY KEY AUTOINCREMENT,
                             producto TEXT,
                             nombre TEXT,
                             precio REAL,
-                            FOREIGN KEY (producto) REFERENCES productos(nombre)
+                            usuario TEXT,
+                            FOREIGN KEY (producto, usuario) REFERENCES productos(nombre, usuario)
+                        );
+                        CREATE TABLE IF NOT EXISTS usuarios (
+                            email TEXT PRIMARY KEY,
+                            name TEXT,
+                            password TEXT
                         );
                     `);
                 },
@@ -263,29 +308,90 @@
                     const data = this.db.export();
                     localStorage.setItem("productosDB", JSON.stringify(Array.from(data)));
                 },
+                saveUsers() {
+                    localStorage.setItem("usuarios", JSON.stringify(this.usuarios));
+                },
                 loadProducts() {
-                    const productos = this.db.exec("SELECT nombre FROM productos");
+                    if (!this.user) return;
+                    const productos = this.db.exec("SELECT nombre FROM productos WHERE usuario = ?", [this.user.email]);
                     this.productos = productos.length > 0 && productos[0].values ? productos[0].values.map(([nombre]) => nombre) : [];
                 },
+                register() {
+                    if (!this.newUser.name || !this.newUser.email || !this.newUser.password) {
+                        this.showMessage("Completa todos los campos.", false);
+                        return;
+                    }
+                    if (this.usuarios[this.newUser.email]) {
+                        this.showMessage("El email ya está registrado.", false);
+                        return;
+                    }
+                    this.usuarios[this.newUser.email] = {
+                        name: this.newUser.name,
+                        password: this.newUser.password
+                    };
+                    this.db.run("INSERT INTO usuarios (email, name, password) VALUES (?, ?, ?)", [
+                        this.newUser.email,
+                        this.newUser.name,
+                        this.newUser.password
+                    ]);
+                    this.saveUsers();
+                    this.saveDB();
+                    this.showMessage("Usuario registrado con éxito.", true);
+                    this.newUser = { name: '', email: '', password: '' };
+                    this.currentView = 'login';
+                },
+                login() {
+                    if (!this.loginEmail || !this.loginPassword) {
+                        this.showMessage("Completa todos los campos.", false);
+                        return;
+                    }
+                    const user = this.usuarios[this.loginEmail];
+                    if (!user || user.password !== this.loginPassword) {
+                        this.showMessage("Email o contraseña incorrectos.", false);
+                        return;
+                    }
+                    this.user = { email: this.loginEmail, name: user.name };
+                    localStorage.setItem("currentUser", JSON.stringify(this.user));
+                    this.loginEmail = '';
+                    this.loginPassword = '';
+                    this.currentView = 'home';
+                    this.loadProducts();
+                    this.showMessage(`Bienvenido, ${user.name}!`, true);
+                },
+                logout() {
+                    this.user = null;
+                    this.productos = [];
+                    this.productoActual = '';
+                    this.componentes = [];
+                    this.total = 0;
+                    localStorage.removeItem("currentUser");
+                    if (this.chart) this.chart.destroy();
+                    this.currentView = 'login';
+                    this.showMessage("Sesión cerrada.", true);
+                },
                 agregarProducto() {
-                    if (!this.nuevoProducto || this.db.exec("SELECT nombre FROM productos WHERE nombre = ?", [this.nuevoProducto]).length > 0) {
+                    if (!this.user) {
+                        this.showMessage("Debes iniciar sesión primero.", false);
+                        return;
+                    }
+                    if (!this.nuevoProducto || this.db.exec("SELECT nombre FROM productos WHERE nombre = ? AND usuario = ?", [this.nuevoProducto, this.user.email]).length > 0) {
                         this.showMessage("El producto ya existe o el nombre es inválido.", false);
                         return;
                     }
-                    this.db.run("INSERT INTO productos (nombre, total) VALUES (?, 0)", [this.nuevoProducto]);
+                    this.db.run("INSERT INTO productos (nombre, total, usuario) VALUES (?, 0, ?)", [this.nuevoProducto, this.user.email]);
                     this.saveDB();
                     this.loadProducts();
                     this.nuevoProducto = '';
                     this.showMessage("Producto creado con éxito.", true);
                 },
                 cargarProducto() {
-                    if (!this.productoActual) {
+                    if (!this.user || !this.productoActual) {
                         this.componentes = [];
                         this.total = 0;
                         if (this.chart) this.chart.destroy();
                         return;
                     }
-                    const componentes = this.db.exec("SELECT nombre, precio FROM componentes WHERE producto = ?", [this.productoActual]);
+                    const componentes = this.db.exec("SELECT nombre, precio FROM componentes WHERE producto = ? AND usuario = ?", [this.productoActual, this.user.email]);
                     this.componentes = componentes.length > 0 && componentes[0].values 
                         ? componentes[0].values.map(([nombre, precio]) => ({ nombre, precio, editNombre: false, editPrecio: false }))
                         : [];
@@ -293,20 +399,20 @@
                     this.updateChart();
                 },
                 agregarComponente() {
-                    if (!this.productoActual) {
-                        this.showMessage("Selecciona o crea un producto primero.", false);
+                    if (!this.user || !this.productoActual) {
+                        this.showMessage("Debes seleccionar un producto primero.", false);
                         return;
                     }
                     if (!this.nuevoComponente || this.nuevoPrecio <= 0) {
                         this.showMessage("Ingresa un componente válido y un precio mayor a 0.", false);
                         return;
                     }
-                    this.db.run("INSERT INTO componentes (producto, nombre, precio) VALUES (?, ?, ?)", [this.productoActual, this.nuevoComponente, this.nuevoPrecio]);
+                    this.db.run("INSERT INTO componentes (producto, nombre, precio, usuario) VALUES (?, ?, ?, ?)", [this.productoActual, this.nuevoComponente, this.nuevoPrecio, this.user.email]);
                     this.saveDB();
                     const nuevoComp = { nombre: this.nuevoComponente, precio: this.nuevoPrecio, editNombre: false, editPrecio: false, highlight: true };
                     this.componentes.push(nuevoComp);
                     this.total += this.nuevoPrecio;
-                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ?", [this.total, this.productoActual]);
+                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ? AND usuario = ?", [this.total, this.productoActual, this.user.email]);
                     this.saveDB();
                     this.nuevoComponente = '';
                     this.nuevoPrecio = 0;
@@ -316,11 +422,12 @@
                     setTimeout(() => nuevoComp.highlight = false, 1000);
                 },
                 eliminarComponente(nombre, precio) {
-                    this.db.run("DELETE FROM componentes WHERE producto = ? AND nombre = ? AND precio = ?", [this.productoActual, nombre, precio]);
+                    if (!this.user) return;
+                    this.db.run("DELETE FROM componentes WHERE producto = ? AND nombre = ? AND precio = ? AND usuario = ?", [this.productoActual, nombre, precio, this.user.email]);
                     this.saveDB();
                     this.componentes = this.componentes.filter(comp => comp.nombre !== nombre || comp.precio !== precio);
                     this.total = this.componentes.reduce((sum, comp) => sum + comp.precio, 0);
-                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ?", [this.total, this.productoActual]);
+                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ? AND usuario = ?", [this.total, this.productoActual, this.user.email]);
                     this.saveDB();
                     this.updateChart();
                 },
@@ -329,12 +436,13 @@
                     else comp.editPrecio = true;
                 },
                 guardarEdicion(comp) {
-                    this.db.run("UPDATE componentes SET nombre = ?, precio = ? WHERE producto = ? AND nombre = ? AND precio = ?", 
-                        [comp.nombre, comp.precio, this.productoActual, comp.nombre, comp.precio]);
+                    if (!this.user) return;
+                    this.db.run("UPDATE componentes SET nombre = ?, precio = ? WHERE producto = ? AND nombre = ? AND precio = ? AND usuario = ?", 
+                        [comp.nombre, comp.precio, this.productoActual, comp.nombre, comp.precio, this.user.email]);
                     comp.editNombre = false;
                     comp.editPrecio = false;
                     this.total = this.componentes.reduce((sum, c) => sum + c.precio, 0);
-                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ?", [this.total, this.productoActual]);
+                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ? AND usuario = ?", [this.total, this.productoActual, this.user.email]);
                     this.saveDB();
                     this.updateChart();
                 },
