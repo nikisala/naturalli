@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Naturalli - Cosmética Natural</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: url('/Users/nicolas/Documents/JUANMA/Grok/naturalli/Background.png') no-repeat center center fixed;
+            background-size: cover;
+            background-blend-mode: overlay;
+            background-color: rgba(255, 255, 255, 0.8); /* Capa blanca semi-transparente para contraste */
+            text-align: center;
+        }
+        .nav {
+            padding: 20px;
+            background-color: rgba(232, 245, 233, 0.9); /* Fondo semi-transparente para el nav */
+        }
+        .nav button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .nav button:hover {
+            background-color: #45a049;
+        }
+        .section {
+            padding: 40px 20px;
+            background-color: rgba(255, 255, 255, 0.95); /* Fondo semi-transparente para las secciones */
+            border-radius: 10px;
+            margin: 0 auto;
+            max-width: 900px;
+        }
+        header {
+            padding: 20px 20px;
+            background-color: rgba(232, 245, 233, 0.95); /* Fondo semi-transparente para el header */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+            border-radius: 10px 10px 0 0;
+        }
+        .logo {
+            max-width: 200px;
+            height: auto;
+            border-radius: 10px;
+            object-fit: contain; /* Asegura que la imagen mantenga proporciones */
+        }
+        h2 {
+            font-size: 1.8em;
+            color: #388e3c;
+        }
+        p {
+            font-size: 1.2em;
+            color: #555;
+        }
+        .intro {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .hero-image {
+            max-width: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        .intro-text {
+            max-width: 500px;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        input, select {
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            flex: 1;
+            background-color: rgba(255, 255, 255, 0.9); /* Fondo semi-transparente para inputs */
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto 20px;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+        .delete-btn:hover {
+            background-color: #da190b;
+        }
+        .highlight {
+            background-color: #e8f5e9;
+            transition: background-color 0.5s;
+        }
+        footer {
+            padding: 20px;
+            background-color: rgba(241, 248, 233, 0.9); /* Fondo semi-transparente para el footer */
+            margin-top: 40px;
+        }
+        .message {
+            padding: 10px;
+            margin-bottom: 20px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #dff0d8;
+            color: #3c763d;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="nav">
+            <button @click="currentView = 'home'">Inicio</button>
+            <button @click="currentView = 'products'">Productos</button>
+        </div>
+
+        <!-- Homepage -->
+        <div v-if="currentView === 'home'" class="section">
+            <header>
+                <img src="/Users/nicolas/Documents/JUANMA/Grok/naturalli/Logo_Naturalli.png" alt="Naturalli Logo" class="logo" />
+            </header>
+            <section class="intro">
+                <img src="https://via.placeholder.com/500x300" alt="Cosmética Natural" class="hero-image" />
+                <div class="intro-text">
+                    <h2>Productos hechos con amor</h2>
+                    <p>En Naturalli, creamos productos de belleza sostenibles, usando ingredientes naturales y ecológicos. Descubre una forma de cuidarte que respeta tu cuerpo y el medio ambiente.</p>
+                </div>
+            </section>
+        </div>
+
+        <!-- Productos (Calculadora) -->
+        <div v-if="currentView === 'products'" class="section">
+            <h2>Gestión de Productos</h2>
+            <div class="input-container">
+                <input v-model="nuevoProducto" placeholder="Nombre del producto" @keydown.enter="agregarProducto" />
+                <button @click="agregarProducto">Crear Producto</button>
+            </div>
+            <div class="input-container">
+                <select v-model="productoActual" @change="cargarProducto">
+                    <option value="">Selecciona un producto</option>
+                    <option v-for="producto in productos" :key="producto" :value="producto">{{ producto }}</option>
+                </select>
+            </div>
+
+            <h2>Componentes y Costos</h2>
+            <div class="message" :class="{ success: messageSuccess }" v-show="message">{{ message }}</div>
+            <div class="input-container">
+                <input v-model="nuevoComponente" placeholder="Componente" @keydown.enter="agregarComponente" />
+                <input type="number" v-model.number="nuevoPrecio" placeholder="Precio" step="10" @input="previewTotal" />
+                <button @click="agregarComponente">Agregar</button>
+            </div>
+            <p>Previsualización del total: ${{ previewTotalValue }}</p>
+            <table>
+                <tr>
+                    <th>Componente</th>
+                    <th>Precio</th>
+                    <th>Acción</th>
+                </tr>
+                <tr v-for="(comp, index) in componentes" :key="index" :class="{ highlight: comp.highlight }">
+                    <td @click="editarComponente(comp, 'nombre')">
+                        <span v-if="!comp.editNombre">{{ comp.nombre }}</span>
+                        <input v-else v-model="comp.nombre" @blur="guardarEdicion(comp)" @keydown.enter="$event.target.blur()" />
+                    </td>
+                    <td @click="editarComponente(comp, 'precio')">
+                        <span v-if="!comp.editPrecio">{{ comp.precio.toFixed(2) }}</span>
+                        <input v-else type="number" v-model.number="comp.precio" step="10" @blur="guardarEdicion(comp)" @keydown.enter="$event.target.blur()" />
+                    </td>
+                    <td><button class="delete-btn" @click="eliminarComponente(comp.nombre, comp.precio)">Eliminar</button></td>
+                </tr>
+            </table>
+            <h3>Total: ${{ total.toFixed(2) }}</h3>
+            <canvas id="costChart" height="200"></canvas>
+        </div>
+
+        <footer>
+            <p>© 2025 Naturalli - Todos los derechos reservados</p>
+        </footer>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    currentView: 'home',
+                    db: null,
+                    productos: [],
+                    productoActual: '',
+                    componentes: [],
+                    nuevoProducto: '',
+                    nuevoComponente: '',
+                    nuevoPrecio: 0,
+                    total: 0,
+                    previewTotalValue: 0,
+                    message: '',
+                    messageSuccess: false,
+                    chart: null
+                };
+            },
+            async created() {
+                await this.initDB();
+                this.loadProducts();
+            },
+            methods: {
+                async initDB() {
+                    const SQL = await initSqlJs({ locateFile: () => "https://cdnjs.cloudflare.com/ajax/libs/sql.js/1.8.0/sql-wasm.wasm" });
+                    const savedDB = localStorage.getItem("productosDB");
+                    this.db = savedDB ? new SQL.Database(new Uint8Array(JSON.parse(savedDB))) : new SQL.Database();
+
+                    this.db.run(`
+                        CREATE TABLE IF NOT EXISTS productos (
+                            nombre TEXT PRIMARY KEY,
+                            total REAL DEFAULT 0
+                        );
+                        CREATE TABLE IF NOT EXISTS componentes (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            producto TEXT,
+                            nombre TEXT,
+                            precio REAL,
+                            FOREIGN KEY (producto) REFERENCES productos(nombre)
+                        );
+                    `);
+                },
+                saveDB() {
+                    const data = this.db.export();
+                    localStorage.setItem("productosDB", JSON.stringify(Array.from(data)));
+                },
+                loadProducts() {
+                    const productos = this.db.exec("SELECT nombre FROM productos");
+                    this.productos = productos.length > 0 && productos[0].values ? productos[0].values.map(([nombre]) => nombre) : [];
+                },
+                agregarProducto() {
+                    if (!this.nuevoProducto || this.db.exec("SELECT nombre FROM productos WHERE nombre = ?", [this.nuevoProducto]).length > 0) {
+                        this.showMessage("El producto ya existe o el nombre es inválido.", false);
+                        return;
+                    }
+                    this.db.run("INSERT INTO productos (nombre, total) VALUES (?, 0)", [this.nuevoProducto]);
+                    this.saveDB();
+                    this.loadProducts();
+                    this.nuevoProducto = '';
+                    this.showMessage("Producto creado con éxito.", true);
+                },
+                cargarProducto() {
+                    if (!this.productoActual) {
+                        this.componentes = [];
+                        this.total = 0;
+                        if (this.chart) this.chart.destroy();
+                        return;
+                    }
+                    const componentes = this.db.exec("SELECT nombre, precio FROM componentes WHERE producto = ?", [this.productoActual]);
+                    this.componentes = componentes.length > 0 && componentes[0].values 
+                        ? componentes[0].values.map(([nombre, precio]) => ({ nombre, precio, editNombre: false, editPrecio: false }))
+                        : [];
+                    this.total = this.componentes.reduce((sum, comp) => sum + comp.precio, 0);
+                    this.updateChart();
+                },
+                agregarComponente() {
+                    if (!this.productoActual) {
+                        this.showMessage("Selecciona o crea un producto primero.", false);
+                        return;
+                    }
+                    if (!this.nuevoComponente || this.nuevoPrecio <= 0) {
+                        this.showMessage("Ingresa un componente válido y un precio mayor a 0.", false);
+                        return;
+                    }
+                    this.db.run("INSERT INTO componentes (producto, nombre, precio) VALUES (?, ?, ?)", [this.productoActual, this.nuevoComponente, this.nuevoPrecio]);
+                    this.saveDB();
+                    const nuevoComp = { nombre: this.nuevoComponente, precio: this.nuevoPrecio, editNombre: false, editPrecio: false, highlight: true };
+                    this.componentes.push(nuevoComp);
+                    this.total += this.nuevoPrecio;
+                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ?", [this.total, this.productoActual]);
+                    this.saveDB();
+                    this.nuevoComponente = '';
+                    this.nuevoPrecio = 0;
+                    this.previewTotalValue = 0;
+                    this.updateChart();
+                    this.showMessage("Componente añadido con éxito.", true);
+                    setTimeout(() => nuevoComp.highlight = false, 1000);
+                },
+                eliminarComponente(nombre, precio) {
+                    this.db.run("DELETE FROM componentes WHERE producto = ? AND nombre = ? AND precio = ?", [this.productoActual, nombre, precio]);
+                    this.saveDB();
+                    this.componentes = this.componentes.filter(comp => comp.nombre !== nombre || comp.precio !== precio);
+                    this.total = this.componentes.reduce((sum, comp) => sum + comp.precio, 0);
+                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ?", [this.total, this.productoActual]);
+                    this.saveDB();
+                    this.updateChart();
+                },
+                editarComponente(comp, campo) {
+                    if (campo === 'nombre') comp.editNombre = true;
+                    else comp.editPrecio = true;
+                },
+                guardarEdicion(comp) {
+                    this.db.run("UPDATE componentes SET nombre = ?, precio = ? WHERE producto = ? AND nombre = ? AND precio = ?", 
+                        [comp.nombre, comp.precio, this.productoActual, comp.nombre, comp.precio]);
+                    comp.editNombre = false;
+                    comp.editPrecio = false;
+                    this.total = this.componentes.reduce((sum, c) => sum + c.precio, 0);
+                    this.db.run("UPDATE productos SET total = ? WHERE nombre = ?", [this.total, this.productoActual]);
+                    this.saveDB();
+                    this.updateChart();
+                },
+                previewTotal() {
+                    this.previewTotalValue = this.total + (this.nuevoPrecio || 0);
+                },
+                showMessage(text, success) {
+                    this.message = text;
+                    this.messageSuccess = success;
+                    setTimeout(() => this.message = '', 2000);
+                },
+                updateChart() {
+                    if (this.chart) this.chart.destroy();
+                    if (!this.componentes.length) return;
+
+                    const ctx = document.getElementById('costChart').getContext('2d');
+                    this.chart = new Chart(ctx, {
+                        type: 'pie',
+                        data: {
+                            labels: this.componentes.map(c => c.nombre),
+                            datasets: [{
+                                data: this.componentes.map(c => c.precio),
+                                backgroundColor: ["#FF6384", "#36A2EB", "#FFCE56", "#4BC0C0", "#9966FF", "#FF9F40", "#C9CBCF", "#E7E9ED"]
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { position: 'top' },
+                                title: { display: true, text: 'Distribución de Costos' }
+                            }
+                        }
+                    });
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
